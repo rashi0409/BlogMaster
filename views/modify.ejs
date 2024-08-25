@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= heading %></title>
+  <style>
+    body {
+      font-family: "Arial", sans-serif;
+      background-color: #f0f4f8;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      font-size: 2rem;
+      color: #333;
+    }
+
+    form {
+      background-color: #ffffff;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 500px;
+    }
+
+    input[type="text"],
+    textarea {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 15px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 1rem;
+      box-sizing: border-box;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background-color: #007bff;
+      color: #ffffff;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    p {
+      color: #e74c3c;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div>
+    <h1><%= heading %></h1>
+
+    <% if (heading === "New Post" || (typeof post !== 'undefined' && post !== null)) { %>
+      <form id="editForm" method="post" action="<%= heading === 'New Post' ? '/api/posts' : '/api/posts/' + post.id %>">
+        <input type="text" name="title" value="<%= post ? post.title : '' %>" placeholder="Title" required>
+        <textarea name="content" rows="10" placeholder="Content" required><%= post ? post.content : '' %></textarea>
+        <input type="text" name="author" value="<%= post ? post.author : '' %>" placeholder="Author" required>
+        <button type="submit"><%= submit %></button>
+      </form>
+    <% } else { %>
+      <p>Error: Post data is missing</p>
+    <% } %>
+  </div>
+</body>
+</html>

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Blogs</title>
+  <link rel="stylesheet" href="/styles/main.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"> <!-- Font Awesome CDN -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      function updateBackground() {
+        const colors = ['#f0f4f8', '#007bff', '#2ecc71', '#e74c3c'];
+        let index = 0;
+
+        setInterval(() => {
+          document.body.style.background = `linear-gradient(45deg, ${colors[index]}, ${colors[(index + 1) % colors.length]})`;
+          index = (index + 1) % colors.length;
+        }, 5000); // Change every 5 seconds
+      }
+
+      updateBackground();
+    });
+  </script>
+</head>
+<body>
+  <div class="main-container">
+    <div class="heade"><h1>My Blogs</h1></div>
+    <a id="newPostBtn" href="/new">
+      <i class="fas fa-plus"></i> Create New Post
+    </a>
+    <ul id="postsList">
+      <% posts.forEach(post => { %>
+        <li class="post-container">
+          <h2><%= post.title %></h2>
+          <small>Posted on<span class="bold"> <%= new Date(post.date).toLocaleDateString() %> </span></small>
+          <p><%= post.content %></p>
+          <small >Posted by <span class="bold"> <%= post.author %></span></small>
+          <div class="post-actions">
+            <a class="edit" href="/edit/<%= post.id %>" title="Edit">
+              <i class="fas fa-edit"></i> Edit
+            </a>
+            <form action="/api/posts/delete/<%= post.id %>" method="get" style="display:inline;">
+              <button type="submit" class="delete" title="Delete">
+                <i class="fas fa-trash-alt"></i> Delete
+              </button>
+            </form>
+          </div>
+        </li>
+      <% }); %>
+    </ul>
+  </div>
+</body>
+</html>
