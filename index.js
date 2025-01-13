@@ -7,7 +7,7 @@ env.config();
 const db = new pg.Client({
   user: process.env.PG_USER, // Use environment variables or fallback values
   host: process.env.PG_HOST,
-  database: process.env.PG_NAME , // Adjust database name as needed
+  database: process.env.PG_DATABASE , // Adjust database name as needed
   password: process.env.PG_PASSWORD,
   port: process.env.PG_PORT,
 });

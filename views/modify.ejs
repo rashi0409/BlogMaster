@@ -73,6 +73,7 @@
         <input type="text" name="title" value="<%= post ? post.title : '' %>" placeholder="Title" required>
         <textarea name="content" rows="10" placeholder="Content" required><%= post ? post.content : '' %></textarea>
         <input type="text" name="author" value="<%= post ? post.author : '' %>" placeholder="Author" required>
+        <input type="password" name="password" placeholder="Password" required>
         <button type="submit"><%= submit %></button>
       </form>
     <% } else { %>

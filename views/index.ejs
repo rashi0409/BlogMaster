@@ -40,10 +40,12 @@
               <i class="fas fa-edit"></i> Edit
             </a>
             <form action="/api/posts/delete/<%= post.id %>" method="get" style="display:inline;">
+              <input type="password" name="password" placeholder="Enter your password" required>
               <button type="submit" class="delete" title="Delete">
                 <i class="fas fa-trash-alt"></i> Delete
               </button>
             </form>
+            
           </div>
         </li>
       <% }); %>
