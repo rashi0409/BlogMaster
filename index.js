@@ -1,19 +1,13 @@
-import pg from 'pg';
+import { MongoClient, ObjectId } from 'mongodb';
 import env from 'dotenv';
 
 env.config();
 
-// Database connection setup using pg.Client
-const db = new pg.Client({
-  user: process.env.PG_USER, // Use environment variables or fallback values
-  host: process.env.PG_HOST,
-  database: process.env.PG_DATABASE , // Adjust database name as needed
-  password: process.env.PG_PASSWORD,
-  port: process.env.PG_PORT,
-});
-
-db.connect(); // Connect to the database
-
+// Database connection setup using MongoDB
+const client = new MongoClient(process.env.MONGO_URI);
+await client.connect();
+const db = client.db(process.env.MONGO_DATABASE); // Specify the database name
+const postsCollection = db.collection('posts');
 
 // Helper function for error handling
 const handleDatabaseError = (res, error, message) => {
@@ -24,27 +18,23 @@ const handleDatabaseError = (res, error, message) => {
 // Function to get all posts
 export const getAllPosts = async (req, res) => {
   try {
-    const result = await db.query('SELECT * FROM posts ORDER BY date DESC');
-    res.json(result.rows);
+    const posts = await postsCollection.find().sort({ date: -1 }).toArray(); // Sort posts by date in descending order
+    res.json(posts);
   } catch (error) {
     handleDatabaseError(res, error, 'Error fetching posts');
   }
 };
 
-
 // Function to get a specific post by id
 export const getPostById = async (req, res) => {
-  const id = parseInt(req.params.id);
-  if (isNaN(id)) {
-    return res.status(400).json({ message: 'Invalid ID' });
-  }
+  const { id } = req.params;
 
   try {
-    const result = await db.query('SELECT * FROM posts WHERE id = $1', [id]);
-    if (result.rows.length === 0) {
+    const post = await postsCollection.findOne({ _id: new ObjectId(id) });
+    if (!post) {
       return res.status(404).json({ message: 'Post not found' });
     }
-    res.json(result.rows[0]);
+    res.json(post);
   } catch (error) {
     handleDatabaseError(res, error, 'Error fetching post');
   }
@@ -58,11 +48,13 @@ export const createPost = async (req, res) => {
   }
 
   try {
-    const result = await db.query(
-      'INSERT INTO posts (title, content, author, date) VALUES ($1, $2, $3, NOW()) RETURNING *',
-      [title, content, author]
-    );
-    res.status(201).json(result.rows[0]);
+    const result = await postsCollection.insertOne({
+      title,
+      content,
+      author,
+      date: new Date(),
+    });
+    res.status(201).json(result.ops[0]);
   } catch (error) {
     handleDatabaseError(res, error, 'Error creating post');
   }
@@ -70,63 +62,48 @@ export const createPost = async (req, res) => {
 
 // Function to update a post
 export const updatePost = async (req, res) => {
-  const id = parseInt(req.params.id);
+  const { id } = req.params;
   const { title, content, author } = req.body;
-  if (isNaN(id)) {
-    return res.status(400).json({ message: 'Invalid ID' });
-  }
 
   try {
-    const setClause = [];
-    const values = [];
+    const updateFields = {};
+    if (title) updateFields.title = title;
+    if (content) updateFields.content = content;
+    if (author) updateFields.author = author;
 
-    if (title) {
-      setClause.push(`title = $${values.length + 1}`);
-      values.push(title);
-    }
-    if (content) {
-      setClause.push(`content = $${values.length + 1}`);
-      values.push(content);
-    }
-    if (author) {
-      setClause.push(`author = $${values.length + 1}`);
-      values.push(author);
-    }
-    if (setClause.length === 0) {
+    if (Object.keys(updateFields).length === 0) {
       return res.status(400).json({ message: 'No fields to update' });
     }
 
-    values.push(id);
-    const query = `UPDATE posts SET ${setClause.join(', ')} WHERE id = $${values.length} RETURNING *`;
-    const result = await db.query(query, values);
+    const result = await postsCollection.findOneAndUpdate(
+      { _id: new ObjectId(id) },
+      { $set: updateFields },
+      { returnDocument: 'after' }
+    );
 
-    if (result.rowCount === 0) {
+    if (!result.value) {
       return res.status(404).json({ message: 'Post not found' });
     }
-    res.json({ message: 'Post updated', post: result.rows[0] });
+    res.json({ message: 'Post updated', post: result.value });
   } catch (error) {
     handleDatabaseError(res, error, 'Error updating post');
   }
 };
 
 // Function to delete a specific post
-
 export const deletePost = async (req, res) => {
-  const id = parseInt(req.params.id);
-  if (isNaN(id)) {
-    return res.status(400).json({ message: 'Invalid ID' });
-  }
+  const { id } = req.params;
 
   try {
-    const result = await db.query('DELETE FROM posts WHERE id = $1 RETURNING *', [id]);
-    if (result.rowCount === 0) {
+    const result = await postsCollection.findOneAndDelete({ _id: new ObjectId(id) });
+
+    if (!result.value) {
       return res.status(404).json({ message: 'Post not found' });
     }
-    res.json({ message: 'Post deleted', post: result.rows[0] });
+    res.json({ message: 'Post deleted', post: result.value });
   } catch (error) {
-    console.error('Error deleting post:', error);
-    res.status(500).json({ message: 'Error deleting post' });
+    handleDatabaseError(res, error, 'Error deleting post');
   }
 };
 
-db.end();
+await client.close();
