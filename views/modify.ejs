@@ -69,7 +69,7 @@
     <h1><%= heading %></h1>
 
     <% if (heading === "New Post" || (typeof post !== 'undefined' && post !== null)) { %>
-      <form id="editForm" method="post" action="<%= heading === 'New Post' ? '/api/posts' : '/api/posts/' + post.id %>">
+      <form id="editForm" method="post" action="<%= heading === 'New Post' ? '/api/posts' : '/api/posts/' + post._id %>">
         <input type="text" name="title" value="<%= post ? post.title : '' %>" placeholder="Title" required>
         <textarea name="content" rows="10" placeholder="Content" required><%= post ? post.content : '' %></textarea>
         <input type="text" name="author" value="<%= post ? post.author : '' %>" placeholder="Author" required>
