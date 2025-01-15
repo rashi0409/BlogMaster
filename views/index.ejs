@@ -36,10 +36,10 @@
           <p><%= post.content %></p>
           <small >Posted by <span class="bold"> <%= post.author %></span></small>
           <div class="post-actions">
-            <a class="edit" href="/edit/<%= post.id %>" title="Edit">
+            <a class="edit" href="/edit/<%= post._id %>" title="Edit">
               <i class="fas fa-edit"></i> Edit
             </a>
-            <form action="/api/posts/delete/<%= post.id %>" method="get" style="display:inline;">
+            <form action="/api/posts/delete/<%= post._id %>" method="post" style="display:inline;">
               <input type="password" name="password" placeholder="Enter your password" required>
               <button type="submit" class="delete" title="Delete">
                 <i class="fas fa-trash-alt"></i> Delete
