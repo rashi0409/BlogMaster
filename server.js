@@ -2,10 +2,10 @@ import express from "express";
 import bodyParser from "body-parser";
 import axios from "axios";
 import env from "dotenv";
-import pg from "pg";
-import path from "path";
 import bcrypt from "bcrypt"; // Import bcrypt for password hashing
-import { fileURLToPath } from 'url';
+import path from "path";
+import { MongoClient, ObjectId } from "mongodb";
+import { fileURLToPath } from "url";
 
 env.config(); // Load environment variables
 
@@ -20,115 +20,117 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Set EJS as the templating engine
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
+app.set("view engine", "ejs");
+app.set("views", path.join(__dirname, "views"));
 
-// Database connection setup using pg.Client
-const db = new pg.Client({
-  user: process.env.PG_USER,
-  host: process.env.PG_HOST,
-  database: process.env.PG_DATABASE,
-  password: process.env.PG_PASSWORD,
-  port: process.env.PG_PORT,
-});
-db.connect();
+// Database connection setup using MongoDB
+const client = new MongoClient(process.env.MONGO_URI);
+await client.connect();
+const db = client.db(process.env.MONGO_DATABASE); // Specify the database name
+const postsCollection = db.collection("posts");
 
 // Routes
-app.get('/', async (req, res) => {
+app.get("/", async (req, res) => {
   try {
-    const result = await db.query('SELECT * FROM posts ORDER BY date DESC');
-    res.render('index', { posts: result.rows });
+    const posts = await postsCollection.find().sort({ date: -1 }).toArray();
+    res.render("index", { posts });
   } catch (error) {
-    console.error('Error fetching posts:', error);
-    res.status(500).send('Server Error');
+    console.error("Error fetching posts:", error);
+    res.status(500).send("Server Error");
   }
 });
 
-app.get('/new', (req, res) => {
-  res.render('modify', { heading: 'New Post', submit: 'Create', post: null });
+app.get("/new", (req, res) => {
+  res.render("modify", { heading: "New Post", submit: "Create", post: null });
 });
 
-app.post('/api/posts', async (req, res) => {
+app.post("/api/posts", async (req, res) => {
   const { title, content, author, password } = req.body;
 
   if (!title || !content || !author || !password) {
-    return res.status(400).send('All fields are required');
+    return res.status(400).send("All fields are required");
   }
 
   try {
     const hashedPassword = await bcrypt.hash(password, 10); // Hash password
-    await db.query(
-      'INSERT INTO posts (title, content, author, password, date) VALUES ($1, $2, $3, $4, NOW())',
-      [title, content, author, hashedPassword]
-    );
-    res.redirect('/');
+    await postsCollection.insertOne({
+      title,
+      content,
+      author,
+      password: hashedPassword,
+      date: new Date(),
+    });
+    res.redirect("/");
   } catch (error) {
-    console.error('Error creating post:', error);
-    res.status(500).send('Server Error');
+    console.error("Error creating post:", error);
+    res.status(500).send("Server Error");
   }
 });
 
 app.get('/edit/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    const { rows } = await db.query('SELECT * FROM posts WHERE id = $1', [id]);
-    if (rows.length) {
-      res.render('modify', { heading: 'Edit Post', submit: 'Update', post: rows[0] });
+    const post = await postsCollection.findOne({ _id: new ObjectId(id) });
+    if (post) {
+      res.render("modify", { heading: "Edit Post", submit: "Update", post });
     } else {
-      res.status(404).send('Post not found');
+      res.status(404).send("Post not found");
     }
   } catch (error) {
-    console.error('Error fetching post:', error);
-    res.status(500).send('Server Error');
+    console.error("Error fetching post:", error);
+    res.status(500).send("Server Error");
   }
 });
 
+// PUT request to update a post by ID
 app.post('/api/posts/:id', async (req, res) => {
   const { id } = req.params;
   const { title, content, author, password } = req.body;
 
   try {
-    const result = await db.query('SELECT password FROM posts WHERE id = $1', [id]);
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: 'Post not found' });
+    const post = await postsCollection.findOne({ _id: new ObjectId(id) });
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
     }
 
-    const validPassword = await bcrypt.compare(password, result.rows[0].password); // Compare hashed passwords
+    const validPassword = await bcrypt.compare(password, post.password); // Compare hashed passwords
     if (!validPassword) {
-      return res.status(403).json({ message: 'Invalid password' });
+      return res.status(403).json({ message: "Invalid password" });
     }
 
-    await db.query(
-      'UPDATE posts SET title = $1, content = $2, author = $3 WHERE id = $4',
-      [title, content, author, id]
+    await postsCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { title, content, author } }
     );
+    // res.json({ message: "Post updated successfully" });
     res.redirect('/');
   } catch (error) {
-    console.error('Error updating post:', error);
-    res.status(500).send('Server Error');
+    console.error("Error updating post:", error);
+    res.status(500).send("Server Error");
   }
 });
 
-app.get('/api/posts/delete/:id', async (req, res) => {
+// DELETE request to delete a post by ID
+app.post('/api/posts/delete/:id', async (req, res) => {
   const { id } = req.params;
-  const { password } = req.query;
+  const { password } = req.body;
 
   try {
-    const result = await db.query('SELECT password FROM posts WHERE id = $1', [id]);
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: 'Post not found' });
+    const post = await postsCollection.findOne({ _id: new ObjectId(id) });
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
     }
 
-    const validPassword = await bcrypt.compare(password, result.rows[0].password);
+    const validPassword = await bcrypt.compare(password, post.password);
     if (!validPassword) {
-      return res.status(403).json({ message: 'Invalid password' });
+      return res.status(403).json({ message: "Invalid password" });
     }
 
-    await db.query('DELETE FROM posts WHERE id = $1', [id]);
+    await postsCollection.deleteOne({ _id: new ObjectId(id) });
     res.redirect('/');
   } catch (error) {
-    console.error('Error deleting post:', error);
-    res.status(500).send('Server Error');
+    console.error("Error deleting post:", error);
+    res.status(500).send("Server Error");
   }
 });
 
